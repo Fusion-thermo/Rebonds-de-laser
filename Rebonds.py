@@ -70,6 +70,7 @@ class courbe:
         for i in range(len(coos)-1):
             self.pixels+=milieu2D([(round(coos[i][0]),round(coos[i][1])),(round(coos[i+1][0]),round(coos[i+1][1]))],[])
         self.approximation=Canevas.create_line([(0,0),(1,1)],fill="red",width=3,smooth=1)
+        self.ligne=Canevas.create_line(0,0,1,1,smooth=1,fill="black",width=2)
     def derivation(self,indice):
         #approximation de la fonction autour du point considéré
         etendue=10
@@ -80,16 +81,15 @@ class courbe:
                 y.append(self.pixels[i][1])
         param, param_cov = curve_fit(func_approx2, x, y)
         y_approx=func_approx2(x,param[0],param[1],param[2])
-        new_coos=[(x[i],y_approx[i]) for i in range(len(x))]
-        Canevas.coords(self.approximation,*flatten(new_coos))
+        self.new_coos=[(x[i],y_approx[i]) for i in range(len(x))]
         #derivation au point voulu
         h=0.1
         x=self.pixels[indice][0]
         self.derivee=(func_approx2([x+h],param[0],param[1],param[2])[0] - func_approx2([x],param[0],param[1],param[2])[0]) / h
 
     def affichage(self):
-        Canevas.create_line(self.coos,smooth=1,fill="black",width=2)
-
+        Canevas.coords(self.ligne,*flatten(self.coos))
+        
 def demo_tangente(pourcentage):
     global trace, tangente, ready, elements
     if not ready:
@@ -116,6 +116,7 @@ def demo_tangente(pourcentage):
     x2=trace.pixels[indice][0]+20
     y2=a*x2+b
     Canevas.coords(tangente.ligne,x1,y1,x2,y2)
+    Canevas.coords(trace.approximation,*flatten(trace.new_coos))
 
 
 class lumiere:
@@ -212,7 +213,7 @@ def milieu2D(file,complet):
 	return complet
 
 def mouvement():
-    global laser, elements
+    global laser, elements, ready, nombre_clic_droit, tangente
     rebond=Canevas.create_line(0,0,1,1,fill="blue")
     #on récupère les coordonnées
     premier=laser.bouts[-1]
@@ -225,6 +226,7 @@ def mouvement():
     tous_pixels=milieu2D([(round(actu_x),round(actu_y)),(round(next_x),round(next_y))],[])
     #si un de ces pixels appartient à un obstacle, on calcule la nouvelle trajectoire
     for pixel in tous_pixels:
+        stop=False
         for element in elements:
             stop=False
             #si un des pixels de la trajectoire prévue fait partie d'un segment obstacle, alors il y a collision
@@ -244,7 +246,7 @@ def mouvement():
                     x2=element.pixels[indice][0]+10
                     y2=a*x2+b
                     Canevas.coords(rebond,x1,y1,x2,y2)
-                    paroi=segment(x1,y1,x2,y2)
+                    paroi=segment(x1,y1,x2,y2,couleur="green")
                 #(u1,u2) vecteur normal à la droite sur laquelle rebondit le laser (segment ou tangente)
                 u1=paroi.a
                 u2=paroi.b
@@ -279,7 +281,14 @@ def mouvement():
     #on affiche la laser à la nouvelle position
     laser.affichage()
 
-    fenetre.after(20,mouvement)
+    recursif = fenetre.after(20,mouvement)
+    if actu_x<0 or actu_x>largeur or actu_y<0 or actu_y>hauteur:
+        fenetre.after_cancel(recursif)
+        Canevas.delete(ALL)
+        pourcentage.set(0)
+        ready=False
+        nombre_clic_droit=0
+
 
 
 fenetre=Tk()
